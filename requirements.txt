@@ -1,0 +1,9 @@
+# Local development dependencies for the "Databricks - Log processor" challenge.
+# Spark itself is provided by the Databricks runtime, databricks-connect gives you a local client.
+
+databricks-connect>=15.4,<16
+databricks-sdk>=0.30
+python-dotenv>=1.0
+requests>=2.32
+pytest>=8.0
+
