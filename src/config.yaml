@@ -1,0 +1,31 @@
+# Single source of truth for names, paths and secret references.
+# No secret values are stored here - only the names under which they can be found.
+
+storage:
+  account: stdbxlogs08a8c5          # from .azure-outputs.json
+  raw_container: raw
+  processed_container: processed
+
+catalog: logs
+
+sql:
+  server: sql-dbxlogs-08a8c5-swedencentral.database.windows.net            # from .azure-outputs.json
+  database: shoplogs
+  user: sqladminuser
+  secret_scope: dbx-logs                 # Databricks secret scope (used on Databricks)
+  password_key: sql-password             # key inside the secret scope
+  password_env: SQL_PASSWORD             # environment variable (used locally, from .env)
+
+ingestion:
+  start_date: "2026-01-01 00:00:00"      # watermark fallback for the very first run
+
+sources:
+  - name: web
+    table: dbo.app_logs_web
+    watermark: ingestion_date
+  - name: api
+    table: dbo.app_logs_api
+    watermark: ingestion_date
+  - name: orders
+    table: dbo.app_logs_orders
+    watermark: ingestion_date
