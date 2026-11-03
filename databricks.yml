@@ -1,0 +1,19 @@
+# This is a Declarative Automation Bundle definition for dbx-log-processor.
+# The Databricks extension requires databricks.yml configuration file.
+# See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
+
+bundle:
+  name: dbx-log-processor
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://adb-7405607547860282.2.azuredatabricks.net
+
+  ## Optionally, there could be 'staging' or 'prod' targets here.
+  #
+  # prod:
+  #   workspace:
+  #     host: https://adb-7405607547860282.2.azuredatabricks.net
