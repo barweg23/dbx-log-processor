@@ -14,6 +14,7 @@ from pyspark.sql import functions as F
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 import config  # noqa: E402
+from quality.tracking import ensure_monitoring_table, track_quality_run  # noqa: E402
 
 
 def rule_name(rule: dict) -> str:
@@ -106,6 +107,7 @@ def main():
     threshold = cfg["quality"]["failure_threshold"]
     run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     sources_over_threshold = []
+    ensure_monitoring_table(spark, cfg)
 
     for source in cfg["sources"]:
         name = source["name"]
@@ -122,7 +124,14 @@ def main():
         ratio = failed / total if total > 0 else 0.0
         print(f"[{name}] read: {total}, passed: {passed}, failed: {failed}, failure ratio: {ratio:.0%}")
 
-        if ratio > threshold:
+        breached = ratio > threshold
+        rule_names = []
+        for rule in source["rules"]:
+            rule_names.append(rule_name(rule))
+            
+        track_quality_run(spark, cfg, run_id, name, rule_names, checked, threshold, breached)
+
+        if breached:
             sources_over_threshold.append(name)
 
     if sources_over_threshold:
