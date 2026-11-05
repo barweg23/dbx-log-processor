@@ -25,9 +25,37 @@ sources:
   - name: web
     table: dbo.app_logs_web
     watermark: ingestion_date
+    rules:
+      - {rule: not_null, columns: [log_id, user_id]}
+      - {rule: unique, columns: [log_id]}
+      - {rule: regex, column: user_email, pattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'}
+      - {rule: range, column: duration_ms, min: 0}
+      - {rule: timestamp, column: event_time}
   - name: api
     table: dbo.app_logs_api
     watermark: ingestion_date
+    rules:
+      - {rule: not_null, columns: [log_id, api_client]}
+      - {rule: unique, columns: [log_id]}
+      - {rule: regex, column: client_email, pattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'}
+      - {rule: range, column: payload_size, min: 0}
+      - {rule: allowed_values, column: http_method, values: [GET, POST, PUT, PATCH, DELETE]}
+      - {rule: timestamp, column: event_time}
   - name: orders
     table: dbo.app_logs_orders
     watermark: ingestion_date
+    rules:
+      - {rule: not_null, columns: [log_id, order_id, customer_id]}
+      - {rule: unique, columns: [log_id]}
+      - {rule: regex, column: customer_email, pattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'}
+      - {rule: range, column: amount, min: 0}
+      - {rule: timestamp, column: event_time}
+      
+quality:
+  failure_threshold: 0.2                 # fail the job when more than 20% of the rows of a source are invalid
+  timestamp_formats:                     # every valid event_time format found in task 02
+    - "yyyy-MM-dd HH:mm:ss"
+    - "MM/dd/yyyy hh:mm:ss a"
+    - "yyyy/MM/dd hh:mm:ss a"
+    - "yyyy-MM-dd'T'HH:mm:ssX"
+    - "dd-MMM-yyyy HH:mm:ss"
