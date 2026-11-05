@@ -37,3 +37,31 @@ def get_sql_password(config: dict, spark=None) -> str:
             f"Environment variable {sql['password_env']} is not set. Add it to your .env file."
         )
     return password
+
+def get_spark():
+    """Return a Spark session: the cluster's own on Databricks, Databricks Connect locally."""
+    if is_running_on_databricks():
+        from pyspark.sql import SparkSession
+
+        return SparkSession.builder.getOrCreate()
+    from databricks.connect import DatabricksSession
+
+    return DatabricksSession.builder.getOrCreate()
+
+
+def raw_path(cfg: dict, source_name: str) -> str:
+    """Folder of one source in the raw container, e.g. abfss://raw@<account>.dfs.core.windows.net/web/."""
+    storage = cfg["storage"]
+    return (
+        f"abfss://{storage['raw_container']}@{storage['account']}.dfs.core.windows.net/"
+        f"{source_name}/"
+    )
+
+
+def processed_path(cfg: dict, folder_key: str, source_name: str) -> str:
+    """Per-source folder in the processed container, e.g. .../checkpoints/web/ for folder_key='checkpoints_folder'."""
+    storage = cfg["storage"]
+    return (
+        f"abfss://{storage['processed_container']}@{storage['account']}.dfs.core.windows.net/"
+        f"{storage[folder_key]}/{source_name}/"
+    )

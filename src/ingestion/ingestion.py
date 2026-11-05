@@ -101,31 +101,11 @@ WHEN NOT MATCHED THEN INSERT *
         """
     )
 
-def raw_path(cfg: dict, source_name: str) -> str:
-    """Folder of one source in the raw container, e.g. abfss://raw@<account>.dfs.core.windows.net/web/."""
-    storage = cfg["storage"]
-    return (
-        f"abfss://{storage['raw_container']}@{storage['account']}.dfs.core.windows.net/"
-        f"{source_name}/"
-    )
-
-
 def write_raw(df, cfg: dict, source_name: str, run_id: str) -> str:
     """Append the new rows as one timestamped Parquet output in the raw zone and return its path."""
-    path = f"{raw_path(cfg, source_name)}{run_id}.parquet"
+    path = f"{config.raw_path(cfg, source_name)}{run_id}.parquet"
     df.write.mode("append").parquet(path)
     return path
-
-def get_spark():
-    """Return a Spark session: the cluster's own on Databricks, Databricks Connect locally."""
-    if config.is_running_on_databricks():
-        from pyspark.sql import SparkSession
-
-        return SparkSession.builder.getOrCreate()
-    from databricks.connect import DatabricksSession
-
-    return DatabricksSession.builder.getOrCreate()
-
 
 def ingest_source(spark, cfg: dict, password: str, source: dict, run_id: str) -> int:
     """Copy the new rows of one source to the raw zone and move its watermark forward."""
@@ -153,7 +133,7 @@ def ingest_source(spark, cfg: dict, password: str, source: dict, run_id: str) ->
 
 
 def main() -> None:
-    spark = get_spark()
+    spark = config.get_spark()
     spark.conf.set("spark.sql.session.timeZone", "UTC")
     cfg = config.load_config()
     password = config.get_sql_password(cfg, spark)

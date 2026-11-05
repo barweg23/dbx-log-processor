@@ -5,6 +5,8 @@ storage:
   account: stdbxlogs08a8c5          # from .azure-outputs.json
   raw_container: raw
   processed_container: processed
+  checkpoints_folder: checkpoints        # Auto Loader state, one subfolder per source (task 06)
+  schemas_folder: schemas               # Auto Loader inferred schemas, one subfolder per source (task 06)
 
 catalog: logs
 
