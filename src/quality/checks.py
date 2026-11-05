@@ -5,6 +5,7 @@ from functools import reduce
 from pyspark.sql import Column, Window
 from pyspark.sql import functions as F
 import sys
+from datetime import datetime, timezone
 from functools import reduce
 from pathlib import Path
 from pyspark.sql import Column, Window
@@ -23,7 +24,10 @@ def rule_name(rule: dict) -> str:
 
 def any_of(conditions: list) -> Column:
     """OR together a list of boolean columns."""
-    return reduce(lambda left, right: left | right, conditions)
+    result = F.lit(False)
+    for condition in conditions:
+        result = result | condition
+    return result
 
 
 def parse_timestamp(column: str, formats: list) -> Column:
@@ -45,7 +49,7 @@ def fails_unique(rule: dict, cfg: dict) -> Column:
 
 def fails_regex(rule: dict, cfg: dict) -> Column:
     value = F.col(rule["column"])
-    return value.isNotNull() & ~value.rlike(rule["pattern"])
+    return value.isNotNull() & ~value.rlike(rule["pattern"])     # value.rlike(rule["pattern"]) 
 
 
 def fails_range(rule: dict, cfg: dict) -> Column:
@@ -86,12 +90,46 @@ def apply_rules(df, rules: list, cfg: dict):
         failures.append(F.when(check(rule, cfg), F.lit(rule_name(rule))))
     return df.withColumn("failed_rules", F.array_compact(F.array(*failures)))
 
-if __name__ == "__main__":
-    # Temporary check of the rules against the bronze tables - replaced by main() in stage 5.
+def split_rows(checked, run_id):
+    """Return (valid rows, invalid rows). Invalid rows keep failed_rules and get the run id."""
+    valid = checked.filter(F.size("failed_rules") == 0).drop("failed_rules")
+    invalid = checked.filter(F.size("failed_rules") > 0).withColumn("run_id", F.lit(run_id))
+    return valid, invalid
+
+def write_table(df, table_name):
+    """Replace the whole table with this DataFrame, so a rerun gives the same result."""
+    df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(table_name)
+
+def main():
     spark = config.get_spark()
     cfg = config.load_config()
+    threshold = cfg["quality"]["failure_threshold"]
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    sources_over_threshold = []
+
     for source in cfg["sources"]:
-        df = spark.table(f"{cfg['catalog']}.bronze.logs_{source['name']}")
-        checked = apply_rules(df, source["rules"], cfg)
-        print(f"--- {source['name']} ---")
-        checked.select("log_id", "failed_rules").orderBy("log_id").show(truncate=False)
+        name = source["name"]
+        bronze = spark.table(f"{cfg['catalog']}.bronze.logs_{name}")
+
+        checked = apply_rules(bronze, source["rules"], cfg)
+        valid, invalid = split_rows(checked, run_id)
+        write_table(valid, f"{cfg['catalog']}.silver.logs_{name}")
+        write_table(invalid, f"{cfg['catalog']}.quarantine.logs_{name}")
+
+        total = bronze.count()
+        failed = invalid.count()
+        passed = valid.count()
+        ratio = failed / total if total > 0 else 0.0
+        print(f"[{name}] read: {total}, passed: {passed}, failed: {failed}, failure ratio: {ratio:.0%}")
+
+        if ratio > threshold:
+            sources_over_threshold.append(name)
+
+    if sources_over_threshold:
+        raise RuntimeError(
+            f"Failure ratio above {threshold:.0%} for: {', '.join(sources_over_threshold)}"
+        )
+
+
+if __name__ == "__main__":
+    main()

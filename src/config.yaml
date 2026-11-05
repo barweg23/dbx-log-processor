@@ -50,7 +50,7 @@ sources:
       - {rule: regex, column: customer_email, pattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'}
       - {rule: range, column: amount, min: 0}
       - {rule: timestamp, column: event_time}
-      
+
 quality:
   failure_threshold: 0.2                 # fail the job when more than 20% of the rows of a source are invalid
   timestamp_formats:                     # every valid event_time format found in task 02
