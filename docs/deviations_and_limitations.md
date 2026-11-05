@@ -16,7 +16,8 @@ Running notes collected during the challenge; they feed the limitations section 
 - **Task 03 – Extra schema:** `logs.monitoring` was created up front for the tracking table in task 08.
 - **Task 03 – Cluster node type:** the subscription has no vCPU quota for the Ddsv5 family in West Europe, so the
   cluster uses a node type from a family with available quota (see the cluster configuration).
-  
+- **Task 01 – SQL auto-pause:** the auto-pause delay was lowered from 60 to 15 minutes to reduce cost. The database
+  is therefore usually paused when a run starts, so the ingestion retries the first connection while it wakes up.
 
 ## Known limitations
 
@@ -31,7 +32,7 @@ Running notes collected during the challenge; they feed the limitations section 
   steps (observed once: a run interrupted with Ctrl+C left `raw/web/20261104_181351.parquet` without a watermark),
   the next run loads the same rows again. Data is never lost; duplicates are caught by the `unique` rule (task 07).
   The duplicate folder was deleted by hand.
-  - **Timestamp precision:** SQL Server `DATETIME2` keeps 7 fractional digits, Spark `TIMESTAMP` keeps 6, so the stored
+- **Timestamp precision:** SQL Server `DATETIME2` keeps 7 fractional digits, Spark `TIMESTAMP` keeps 6, so the stored
   watermark could be slightly lower than the real value and the newest row was ingested again on every run
   (found with row 3006: `18:30:14.6187073` in SQL vs `18:30:14.618707` in Spark). Fix: the query reads rows
   `>= watermark + 1 microsecond`. Remaining risk: a row written within the same microsecond as the last loaded row,
