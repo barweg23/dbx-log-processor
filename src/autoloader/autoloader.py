@@ -10,29 +10,22 @@ try:
     src_folder = Path(__file__).resolve().parents[1]
 except NameError:
     # A Databricks job runs the file with exec(), so __file__ is not set;
-    # the working directory is then the folder of the file, e.g. src/ingestion.
+    # the working directory is then the folder of the file, e.g. src/autoloader.
     src_folder = Path.cwd().parent
 sys.path.append(str(src_folder))
 
 import config  # noqa: E402
 
 
-def bronze_table(cfg: dict, source_name: str) -> str:
-    """Full name of the bronze table of one source, e.g. logs.bronze.logs_web."""
-    return f"{cfg['catalog']}.bronze.logs_{source_name}"
-
-
-def load_source(spark, cfg: dict, source: dict) -> None:
+def load_source(spark, cfg, source_name):
     """Load the new raw files of one source into its bronze table, then stop (availableNow)."""
-    name = source["name"]
-
     stream = (
         spark.readStream.format("cloudFiles")
         .option("cloudFiles.format", "parquet")
-        .option("cloudFiles.schemaLocation", config.processed_path(cfg, "schemas_folder", name))
+        .option("cloudFiles.schemaLocation", config.schema_path(cfg, source_name))
         .option("cloudFiles.schemaEvolutionMode", "addNewColumns")
         .option("pathGlobFilter", "*.parquet")
-        .load(config.raw_path(cfg, name))
+        .load(config.raw_path(cfg, source_name))
         .select(
             "*",
             F.col("_metadata.file_path").alias("_source_file"),
@@ -42,23 +35,24 @@ def load_source(spark, cfg: dict, source: dict) -> None:
     )
 
     query = (
-        stream.writeStream.option(
-            "checkpointLocation", config.processed_path(cfg, "checkpoints_folder", name)
-        )
+        stream.writeStream
+        .option("checkpointLocation", config.checkpoint_path(cfg, source_name))
         .trigger(availableNow=True)
-        .toTable(bronze_table(cfg, name))
+        .toTable(config.table_name(cfg, "bronze", source_name))
     )
     query.awaitTermination()
 
 
-def main() -> None:
+def main():
     spark = config.get_spark()
     cfg = config.load_config()
 
     for source in cfg["sources"]:
-        load_source(spark, cfg, source)
-        table = bronze_table(cfg, source["name"])
-        print(f"[{source['name']}] {table} now has {spark.table(table).count()} rows")
+        name = source["name"]
+        load_source(spark, cfg, name)
+
+        table = config.table_name(cfg, "bronze", name)
+        print(f"[{name}] {table} now has {spark.table(table).count()} rows")
 
 
 if __name__ == "__main__":

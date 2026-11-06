@@ -37,3 +37,9 @@ Running notes collected during the challenge; they feed the limitations section 
   (found with row 3006: `18:30:14.6187073` in SQL vs `18:30:14.618707` in Spark). Fix: the query reads rows
   `>= watermark + 1 microsecond`. Remaining risk: a row written within the same microsecond as the last loaded row,
   after the run, would be skipped. The two duplicate output folders in `raw/orders/` were deleted by hand.
+- **Unit tests without Spark:** the unit tests cover the pure Python helpers (paths, table names, JDBC URL, rule
+  names, configuration). The Spark logic of the rules is verified end to end on the seeded data instead, because the
+  CI agent has no Spark cluster.
+- **vCPU quota:** the subscription allows 10 vCPUs in West Europe, i.e. two 4-core clusters at a time. A job run
+  failed with `AZURE_QUOTA_EXCEEDED_EXCEPTION` while the interactive cluster was still running; it passed after the
+  interactive cluster was terminated. A free quota increase request would remove this limit.
