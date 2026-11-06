@@ -1,9 +1,68 @@
-# This is a Declarative Automation Bundle definition for dbx-log-processor.
-# The Databricks extension requires databricks.yml configuration file.
-# See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
+# Databricks Asset Bundle: the whole pipeline (job, cluster, code) deployed as one versioned unit.
 
 bundle:
   name: dbx-log-processor
+
+variables:
+  catalog:
+    description: Unity Catalog catalog name
+    default: logs
+  storage_account:
+    description: ADLS Gen2 storage account name
+    default: stdbxlogs08a8c5
+  notification_email:
+    description: Where to send an e-mail when the job fails
+    default: bartosznaukade@gmail.com
+
+resources:
+  jobs:
+    log_processor:
+      name: log-processor
+
+      schedule:
+        quartz_cron_expression: "0 0 * * * ?"    # every hour, on the hour
+        timezone_id: UTC
+        pause_status: UNPAUSED                  # development mode pauses it automatically in dev
+
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
+
+      job_clusters:
+        - job_cluster_key: main
+          new_cluster:
+            spark_version: 15.4.x-scala2.12
+            node_type_id: Standard_D4s_v3
+            num_workers: 0
+            data_security_mode: SINGLE_USER
+            spark_conf:
+              spark.databricks.cluster.profile: singleNode
+              spark.master: "local[*]"
+            custom_tags:
+              ResourceClass: SingleNode
+            spark_env_vars:
+              LOGS_CATALOG: ${var.catalog}
+              LOGS_STORAGE_ACCOUNT: ${var.storage_account}
+
+      tasks:
+        - task_key: ingestion
+          job_cluster_key: main
+          spark_python_task:
+            python_file: src/ingestion/ingestion.py
+
+        - task_key: autoloader
+          depends_on:
+            - task_key: ingestion
+          job_cluster_key: main
+          spark_python_task:
+            python_file: src/autoloader/autoloader.py
+
+        - task_key: quality_checks
+          depends_on:
+            - task_key: autoloader
+          job_cluster_key: main
+          spark_python_task:
+            python_file: src/quality/checks.py
 
 targets:
   dev:
@@ -12,8 +71,8 @@ targets:
     workspace:
       host: https://adb-7405607547860282.2.azuredatabricks.net
 
-  ## Optionally, there could be 'staging' or 'prod' targets here.
-  #
-  # prod:
-  #   workspace:
-  #     host: https://adb-7405607547860282.2.azuredatabricks.net
+  prod:
+    mode: production
+    workspace:
+      host: https://adb-7405607547860282.2.azuredatabricks.net
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}

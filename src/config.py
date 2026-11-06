@@ -9,9 +9,16 @@ CONFIG_PATH = Path(__file__).parent / "config.yaml"
 
 
 def load_config(path: Path = CONFIG_PATH) -> dict:
-    """Read config.yaml and return it as a dictionary."""
+    """Read config.yaml; values set by the Databricks Asset Bundle (task 09) take priority."""
     with open(path, encoding="utf-8") as file:
-        return yaml.safe_load(file)
+        cfg = yaml.safe_load(file)
+
+    if "LOGS_CATALOG" in os.environ:
+        cfg["catalog"] = os.environ["LOGS_CATALOG"]
+    if "LOGS_STORAGE_ACCOUNT" in os.environ:
+        cfg["storage"]["account"] = os.environ["LOGS_STORAGE_ACCOUNT"]
+
+    return cfg
 
 
 def is_running_on_databricks() -> bool:

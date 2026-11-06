@@ -6,7 +6,13 @@ from pathlib import Path
 from pyspark.sql import functions as F
 
 # Make src/ importable, so `import config` works both locally and on Databricks.
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+try:
+    src_folder = Path(__file__).resolve().parents[1]
+except NameError:
+    # A Databricks job runs the file with exec(), so __file__ is not set;
+    # the working directory is then the folder of the file, e.g. src/ingestion.
+    src_folder = Path.cwd().parent
+sys.path.append(str(src_folder))
 
 import config  # noqa: E402
 
