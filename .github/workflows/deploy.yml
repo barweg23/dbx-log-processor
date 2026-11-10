@@ -1,0 +1,37 @@
+name: Deploy
+
+# Run when new code lands on the main branch (for example after a merged pull request).
+on:
+  push:
+    branches: [main]
+
+# Only one deployment at a time. A second run waits until the first one is finished.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # The prod environment has a required reviewer, so the job waits for an approval.
+    environment: prod
+
+    env:
+      DATABRICKS_AUTH_TYPE: github-oidc
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ vars.DATABRICKS_CLIENT_ID }}
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v5
+
+      - name: Install the Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Deploy the bundle to prod
+        run: databricks bundle deploy -t prod

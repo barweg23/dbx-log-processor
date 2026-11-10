@@ -1,0 +1,43 @@
+name: CI
+
+# Run on every pull request that targets the main branch.
+on:
+  pull_request:
+    branches: [main]
+
+# The job only reads the code and asks GitHub for an OIDC token.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    # The Databricks CLI reads these values. There is no secret here:
+    # GitHub creates a short-lived OIDC token for every run.
+    env:
+      DATABRICKS_AUTH_TYPE: github-oidc
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ vars.DATABRICKS_CLIENT_ID }}
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install Python packages
+        run: pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: pytest
+
+      - name: Install the Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Validate the bundle
+        run: databricks bundle validate -t dev

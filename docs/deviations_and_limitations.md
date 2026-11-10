@@ -18,6 +18,17 @@ Running notes collected during the challenge; they feed the limitations section 
   cluster uses a node type from a family with available quota (see the cluster configuration).
 - **Task 01 – SQL auto-pause:** the auto-pause delay was lowered from 60 to 15 minutes to reduce cost. The database
   is therefore usually paused when a run starts, so the ingestion retries the first connection while it wakes up.
+- **Task 10 – OIDC instead of a client secret:** the handbook suggests `DATABRICKS_CLIENT_SECRET` for OAuth M2M. The
+  workflows use OIDC (workload identity federation) instead: GitHub creates a short-lived token for every run, so
+  there is no long-lived secret to store or rotate. The service principal has two federation policies, one for
+  `environment:prod` (deploy) and one for `pull_request` (CI). The subjects use the new GitHub format with numeric
+  owner and repository IDs, because the repository was created after 15 July 2026.
+- **Task 10 – Prod schedule is paused:** the `prod` target overrides the job schedule with `pause_status: PAUSED` to
+  save costs. The `dev` target is paused automatically by `mode: development`.
+- **Task 10 – Separate admin user for the account console:** the Azure subscription uses a personal Microsoft
+  account, which cannot sign in to the Databricks account console. A separate Microsoft Entra ID user with the
+  Global Administrator role was created and is used only for account-level tasks (service principal, federation
+  policies).
 
 ## Known limitations
 
@@ -43,3 +54,10 @@ Running notes collected during the challenge; they feed the limitations section 
 - **vCPU quota:** the subscription allows 10 vCPUs in West Europe, i.e. two 4-core clusters at a time. A job run
   failed with `AZURE_QUOTA_EXCEEDED_EXCEPTION` while the interactive cluster was still running; it passed after the
   interactive cluster was terminated. A free quota increase request would remove this limit.
+- **Task 10 – Dev and prod share the same data:** both targets use the same catalog (`logs`) and the same storage
+  paths (raw files, checkpoints). Running both jobs would overwrite each other's tables and watermarks, so the prod
+  job is only deployed, not run. The service principal has no data permissions yet. A real setup would use a
+  separate catalog and storage for prod and grant the service principal access to them.
+- **Task 10 – One service principal for CI and CD:** CI and deploy log in as the same service principal, so CI has
+  the same rights as the deployment. A stricter setup would use a second service principal for CI that can only
+  validate the bundle.

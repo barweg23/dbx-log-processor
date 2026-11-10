@@ -76,3 +76,13 @@ targets:
     workspace:
       host: https://adb-7405607547860282.2.azuredatabricks.net
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+    # Keep the hourly schedule paused in prod to save costs in this challenge.
+    # Change PAUSED to UNPAUSED to turn on the real schedule.
+    resources:
+      jobs:
+        log_processor:
+          schedule:
+            quartz_cron_expression: "0 0 * * * ?"
+            timezone_id: UTC
+            pause_status: PAUSED
+    
