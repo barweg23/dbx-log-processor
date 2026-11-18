@@ -178,7 +178,7 @@ Evidence: `05_git_status_no_python.png`, `05_payments_graph.png`, `05_payments_i
 | Where | Result | Evidence |
 |---|---|---|
 | Local (Python 3.11.9, pytest 9.2.0) | 9 passed | `06_pytest_local.png` |
-| CI (`ci.yml` on the pull request of this task) | 9 passed | [CI run](<CI_RUN_URL_TASK_12>) |
+| CI (`ci.yml` on the pull request of this task) | 9 passed | [CI run](https://github.com/barweg23/dbx-log-processor/actions/runs/44349550969/job/134961094169?pr=2) |
 
 The test `test_every_source_has_the_required_keys` also checks the new `payments` entry.
 
