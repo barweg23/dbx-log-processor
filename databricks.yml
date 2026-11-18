@@ -19,10 +19,13 @@ resources:
     log_processor:
       name: log-processor
 
+      # Paused in all targets to save costs. Change to UNPAUSED to turn on the hourly runs.
+      # Note: mode: development does not pause a schedule that is explicitly UNPAUSED.
+
       schedule:
         quartz_cron_expression: "0 0 * * * ?"    # every hour, on the hour
         timezone_id: UTC
-        pause_status: UNPAUSED                  # development mode pauses it automatically in dev
+        pause_status: PAUSED                  # development mode pauses it automatically in dev
 
       email_notifications:
         on_failure:
@@ -76,13 +79,5 @@ targets:
     workspace:
       host: https://adb-7405607547860282.2.azuredatabricks.net
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
-    # Keep the hourly schedule paused in prod to save costs in this challenge.
-    # Change PAUSED to UNPAUSED to turn on the real schedule.
-    resources:
-      jobs:
-        log_processor:
-          schedule:
-            quartz_cron_expression: "0 0 * * * ?"
-            timezone_id: UTC
-            pause_status: PAUSED
+
     

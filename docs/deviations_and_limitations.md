@@ -23,8 +23,11 @@ Running notes collected during the challenge; they feed the limitations section 
   there is no long-lived secret to store or rotate. The service principal has two federation policies, one for
   `environment:prod` (deploy) and one for `pull_request` (CI). The subjects use the new GitHub format with numeric
   owner and repository IDs, because the repository was created after 15 July 2026.
-- **Task 10 – Prod schedule is paused:** the `prod` target overrides the job schedule with `pause_status: PAUSED` to
-  save costs. The `dev` target is paused automatically by `mode: development`.
+- **Task 10 / 12 – Job schedule is paused:** the hourly schedule is set to `pause_status: PAUSED` for all targets in
+  `databricks.yml` to save costs. `mode: development` does not pause a schedule that is explicitly `UNPAUSED`, so the
+  pause has to be set in the file (see the scheduled runs incident below).
+- **Task 12 – Fourth source:** the `payments` source (`sql/03_add_payments_source.sql` and an entry in
+  `src/config.yaml`) was added for the onboarding test and stays in the project.
 - **Task 10 – Separate admin user for the account console:** the Azure subscription uses a personal Microsoft
   account, which cannot sign in to the Databricks account console. A separate Microsoft Entra ID user with the
   Global Administrator role was created and is used only for account-level tasks (service principal, federation
@@ -61,3 +64,16 @@ Running notes collected during the challenge; they feed the limitations section 
 - **Task 10 – One service principal for CI and CD:** CI and deploy log in as the same service principal, so CI has
   the same rights as the deployment. A stricter setup would use a second service principal for CI that can only
   validate the bundle.
+- **Task 12 – Scheduled runs incident:** until 17 November the `dev` job ran every hour, because `databricks.yml` set
+  `pause_status: UNPAUSED` and development mode keeps an explicit value. It added cost (job cluster and SQL database
+  every hour), overwrote the first reset attempt and added extra runs to the monitoring table. Found because the
+  monitoring table had more runs than were started by hand; fixed by pausing the schedule for all targets.
+- **Task 12 – Duplicates in the same file:** the `unique` rule keeps the row with the earliest `_ingested_at` and
+  `_source_file`. Duplicates from the same file have the same values, so which one is kept is not deterministic. It
+  does not matter for identical duplicates; for different ones a later run could keep the other row.
+- **Task 12 – `threshold_breached` is per source:** the column holds the decision for the whole source, so it is also
+  `true` on rules with zero failures.
+- **Task 12 – Slow ingestion after auto-pause:** an ingestion task can take more than 10 minutes when the serverless
+  SQL database has to wake up; the retry loop waits for it.
+- **Task 12 – Rerunning the payments script:** `sql/03_add_payments_source.sql` truncates the table and inserts the
+  rows with a new `ingestion_date`, so running it again loads the same payments a second time.
