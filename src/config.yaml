@@ -50,6 +50,16 @@ sources:
       - {rule: regex, column: customer_email, pattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'}
       - {rule: range, column: amount, min: 0}
       - {rule: timestamp, column: event_time}
+  - name: payments
+    table: dbo.app_logs_payments
+    watermark: ingestion_date
+    rules:
+      - {rule: not_null, columns: [log_id, payment_id, order_id]}
+      - {rule: unique, columns: [log_id]}
+      - {rule: regex, column: payer_email, pattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'}
+      - {rule: range, column: amount, min: 0}
+      - {rule: allowed_values, column: payment_method, values: [CARD, BLIK, TRANSFER]}
+      - {rule: timestamp, column: event_time}  
 
 quality:
   failure_threshold: 0.2                 # fail the job when more than 20% of the rows of a source are invalid

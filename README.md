@@ -1,8 +1,9 @@
 # Databricks Log Processor
 
-A log processing platform on Azure Databricks. Logs from three applications (web, api, orders)
-are read from Azure SQL Database, loaded into Unity Catalog with Auto Loader, and checked
-by a configurable data quality framework.
+A log processing platform on Azure Databricks. Application logs are read from Azure SQL Database,
+loaded into Unity Catalog with Auto Loader, and checked by a configurable data quality framework.
+There are four sources: web, api and orders from the challenge, and payments, added in task 12
+through configuration only.
 
 ## Pipeline
 
@@ -21,7 +22,7 @@ The three steps run as one Databricks job defined in `databricks.yml` (Databrick
 | `src/` | pipeline code and `config.yaml` |
 | `tests/` | unit tests (pytest) |
 | `sql/` | scripts that create and fill the source database |
-| `docs/` | data defects, deviations and known limitations |
+| `docs/` | data defects, deviations and limitations, validation report and screenshots |
 | `databricks.yml` | job definition and the `dev` / `prod` targets |
 | `.github/workflows/` | CI and CD workflows |
 | `Create-AzureResources.ps1` | creates the Azure resources |
@@ -38,6 +39,14 @@ pytest
 
 Create a `.env` file with `SQL_PASSWORD=<password>` to run the ingestion locally.
 The file is in `.gitignore` and must never be committed.
+
+## Adding a new log source
+
+1. Create the source table in Azure SQL (see `sql/03_add_payments_source.sql` as an example).
+2. Add an entry to the `sources` list in `src/config.yaml`: `name`, `table`, `watermark` and `rules`.
+3. Deploy the bundle. The bronze, silver and quarantine tables are created on the first run.
+
+No Python module has to change.
 
 ## CI/CD (GitHub Actions)
 
@@ -75,7 +84,13 @@ None. `DATABRICKS_CLIENT_SECRET` is not needed because OIDC replaces the client 
 The `prod` environment (**Settings > Environments**) has a required reviewer,
 so every deployment waits for a manual approval.
 
-### Prod schedule
+## Job schedule
 
-The job schedule is paused in the `prod` target to save costs.
-See `docs/deviations_and_limitations.md`.
+The job has an hourly schedule, but it is paused in all targets to save costs
+(`pause_status: PAUSED` in `databricks.yml`). Change it to `UNPAUSED` to turn it on.
+Note: `mode: development` does not pause a schedule that is explicitly set to `UNPAUSED`.
+
+## Validation
+
+The end-to-end validation (task 12) is described in [`docs/validation.md`](docs/validation.md).
+Deviations and known limitations are in [`docs/deviations_and_limitations.md`](docs/deviations_and_limitations.md).
